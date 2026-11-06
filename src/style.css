@@ -1,9 +1,5 @@
 /* Neon Warden: the HUD panels tilt toward the screen like an arcade cabinet. */
 
-/* Name the colors, the glow shadow, the two font stacks, and the sizes that shape the layout
-(panel and screen widths, tilt, overlap, gap, corner radius); a value used only once can stay literal.
-Paired values like a tilt and its mirror can share one property: calc(-1 * var(--tilt)). */
-
 :root {
   --title-yellow: #ffe066;
   --game-pink: #ff5ea8;
@@ -113,19 +109,25 @@ output {
 
 .pip {
   color: var(--game-pink);
+  width: 22px;
+  clip-path: polygon(50% 0, 100% 100%, 0% 100%);
+  background: currentColor;
 }
 
 .cell {
   color: var(--title-yellow);
+  flex: 1;
+  border-radius: 2px;
 }
 
-.pip.lit,
-.cell.lit {
+.pip.lit {
   opacity: 1;
   box-shadow: var(--glow-shadow);
 }
 
 .cell.lit {
+  opacity: 1;
+  box-shadow: var(--glow-shadow);
   background: currentColor;
 }
 

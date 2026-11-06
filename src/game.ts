@@ -651,7 +651,7 @@ export class GameScene extends Phaser.Scene implements Arena {
             x,
             i % 2 === 0 ? 1 : -1,
           );
-          this.enemy2.dropChance = 0.015;
+          this.enemy3.dropChance = 0.015;
           this.enemies.push(this.enemy3);
         }
       }

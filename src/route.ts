@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { ShmupPrefabSprite } from "./prefab.ts";
+import { enemyTypes, ShmupPrefabSprite } from "./prefab.ts";
 import { GameScene } from "./game.ts";
 
 export interface typeStats {
@@ -9,6 +9,7 @@ export interface typeStats {
   radius: number;
   dropChance: number;
   canShoot: boolean;
+  isPickup: boolean;
 }
 export interface sector {
   name: string;
@@ -21,6 +22,13 @@ export interface wave {
   spawnPosEquation: (i: number) => number;
   spawnTimeEquation: (i: number) => number;
   type: string;
+}
+export interface spawnInfo {
+  x: number;
+  y: number;
+  kind: string;
+  homeX: number;
+  side: number;
 }
 export const sectors: sector[] = [];
 const sector1: sector = {
@@ -274,66 +282,29 @@ const sector5: sector = {
 };
 
 sectors.push(sector1, sector2, sector3, sector4, sector5);
-const SPAWN_Y = () => -30;
 
 export class Route {
   constructor(
     private readonly scene: Phaser.Scene,
   ) {}
 
-  private readonly enemyTypes: Record<string, typeStats> = {
-    drone: {
-      hp: 2,
-      y: SPAWN_Y,
-      score: 100,
-      radius: 13,
-      dropChance: 0.015,
-      canShoot: true,
-    },
-    dart: {
-      hp: 1,
-      y: SPAWN_Y,
-      score: 150,
-      radius: 12,
-      dropChance: 0.015,
-      canShoot: false,
-    },
-    turret: {
-      hp: 12,
-      y: SPAWN_Y,
-      score: 400,
-      radius: 19,
-      dropChance: 0.3,
-      canShoot: true,
-    },
-    lancer: {
-      hp: 4,
-      y: (i) => 70 + Math.floor(i / 2) * 50,
-      score: 250,
-      radius: 15,
-      dropChance: 0.06,
-      canShoot: true,
-    },
-  };
   createEnemy(
     enemyNum: number,
     x: number,
     type: string = "drone",
   ): void {
-    const stats = this.enemyTypes[type];
+    const stats = enemyTypes[type];
+    const spawnStats = {
+      x,
+      y: stats.y(enemyNum),
+      kind: type,
+      homeX: x,
+      side: enemyNum % 2 === 0 ? 1 : -1,
+    };
     const enemy = new ShmupPrefabSprite(
       this.scene,
-      x,
-      stats.y(enemyNum),
-      type,
-      stats.hp,
-      stats.score,
-      stats.radius,
-      stats.dropChance,
-      stats.canShoot,
-      false,
-      x,
-      enemyNum % 2 === 0 ? 1 : -1,
+      stats,
+      spawnStats,
     );
     (this.scene as GameScene).newEnemy(enemy);
   }

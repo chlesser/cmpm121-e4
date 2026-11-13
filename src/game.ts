@@ -7,7 +7,12 @@ import {
   Player,
   WIDTH,
 } from "./actors.ts";
-import { ShmupBoss, ShmupPowerUp, ShmupPrefabSprite } from "./prefab.ts";
+import {
+  enemyTypes,
+  ShmupBoss,
+  ShmupPowerUp,
+  ShmupPrefabSprite,
+} from "./prefab.ts";
 import type { Hud } from "./hud.ts";
 import type { LaunchOptions } from "./main.ts";
 import { AutoPilot, KeyboardPilot, type Pilot } from "./pilots.ts";
@@ -329,17 +334,14 @@ export class GameScene extends Phaser.Scene implements Arena {
     this.enemies.push(
       new ShmupPrefabSprite(
         this,
-        x,
-        y,
-        "drone",
-        2,
-        100,
-        13,
-        0.015,
-        true,
-        false,
-        x,
-        x < WIDTH / 2 ? 1 : -1,
+        enemyTypes["drone"],
+        {
+          x,
+          y,
+          kind: "drone",
+          homeX: x,
+          side: x < WIDTH / 2 ? 1 : -1,
+        },
       ),
     );
   }

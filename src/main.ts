@@ -18,6 +18,14 @@ export interface LaunchOptions {
   speed: number;
   seed: number;
 }
+export interface RunOptions {
+  score: number;
+  lives: number;
+  kills: number;
+  hits: number;
+  continues: number;
+  bossDefeated: boolean;
+}
 
 const params = new URLSearchParams(location.search);
 const options: LaunchOptions = {

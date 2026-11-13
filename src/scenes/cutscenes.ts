@@ -1,7 +1,7 @@
 import Phaser from "phaser";
 import { Backdrop } from "./backdrop.ts";
 import { Hud } from "../hud.ts";
-import { launchScene } from "../main.ts";
+import { launchScene, RunOptions } from "../main.ts";
 import { HEIGHT, WIDTH } from "../actors.ts";
 import { TINTS } from "../textures.ts";
 import { play } from "../sounds.ts";
@@ -23,29 +23,18 @@ export class Cutscenes extends Phaser.Scene {
   }
   init(data: {
     demo?: boolean;
-    run?: {
-      score: number;
-      kills: number;
-      hits: number;
-      continues: number;
-    };
+    run?: RunOptions;
   }) {
     this.cutsceneAfterDemo = data.demo === true;
   }
   create(data: {
     demo?: boolean;
-    run?: {
-      score: number;
-      lives: number;
-      kills: number;
-      hits: number;
-      continues: number;
-    };
+    run: RunOptions;
   }) {
     this.input.keyboard?.on("keydown-SPACE", () => this.onSpace());
     this.backdrop = new Backdrop(this);
 
-    const run = data.run;
+    const run: RunOptions = data.run;
     this.hud.setMode("cutscene");
     this.hud.setBoss(null);
     this.cameras.main.fadeIn(600, 4, 2, 12);

@@ -7,7 +7,7 @@ import {
   type sector,
   Turret,
 } from "./actors.ts";
-import { GameScene } from "./game.ts";
+import { Play } from "./scenes/play.ts";
 
 export const sectors: sector[] = [];
 const sector1: sector = {
@@ -286,7 +286,7 @@ export class Route {
       : type === "lancer"
       ? new Lancer(this.scene, spawnStats)
       : new Dart(this.scene, spawnStats);
-    (this.scene as GameScene).newEnemy(enemy);
+    (this.scene as Play).newEnemy(enemy);
   }
 
   spawnWave(

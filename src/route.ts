@@ -1,35 +1,14 @@
 import Phaser from "phaser";
-import { enemyTypes, ShmupPrefabSprite } from "./prefab.ts";
+import {
+  Dart,
+  Drone,
+  enemyTypes,
+  Lancer,
+  type sector,
+  Turret,
+} from "./actors.ts";
 import { GameScene } from "./game.ts";
 
-export interface typeStats {
-  hp: number;
-  y: (i: number) => number;
-  score: number;
-  radius: number;
-  dropChance: number;
-  canShoot: boolean;
-  isPickup: boolean;
-}
-export interface sector {
-  name: string;
-  description: string;
-  wavelength: number;
-  waves: wave[];
-}
-export interface wave {
-  numEnemies: number;
-  spawnPosEquation: (i: number) => number;
-  spawnTimeEquation: (i: number) => number;
-  type: string;
-}
-export interface spawnInfo {
-  x: number;
-  y: number;
-  kind: string;
-  homeX: number;
-  side: number;
-}
 export const sectors: sector[] = [];
 const sector1: sector = {
   name: "Sector 1: Outer Drift",
@@ -293,19 +272,20 @@ export class Route {
     x: number,
     type: string = "drone",
   ): void {
-    const stats = enemyTypes[type];
     const spawnStats = {
       x,
-      y: stats.y(enemyNum),
+      y: enemyTypes[type].y(enemyNum),
       kind: type,
       homeX: x,
       side: enemyNum % 2 === 0 ? 1 : -1,
     };
-    const enemy = new ShmupPrefabSprite(
-      this.scene,
-      stats,
-      spawnStats,
-    );
+    const enemy = type === "drone"
+      ? new Drone(this.scene, spawnStats)
+      : type === "turret"
+      ? new Turret(this.scene, spawnStats)
+      : type === "lancer"
+      ? new Lancer(this.scene, spawnStats)
+      : new Dart(this.scene, spawnStats);
     (this.scene as GameScene).newEnemy(enemy);
   }
 

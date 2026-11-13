@@ -4,6 +4,81 @@ import type { Rng } from "./rng.ts";
 export const WIDTH = 480;
 export const HEIGHT = 640;
 
+function aim(from: { x: number; y: number }, arena: Arena): number {
+  return Math.atan2(arena.player.y - from.y, arena.player.x - from.x);
+}
+
+export interface typeStats {
+  hp: number;
+  y: (i: number) => number;
+  score: number;
+  radius: number;
+  dropChance: number;
+  canShoot: boolean;
+}
+export interface sector {
+  name: string;
+  description: string;
+  wavelength: number;
+  waves: wave[];
+}
+export interface wave {
+  numEnemies: number;
+  spawnPosEquation: (i: number) => number;
+  spawnTimeEquation: (i: number) => number;
+  type: string;
+}
+export interface spawnInfo {
+  x: number;
+  y: number;
+  kind: string;
+  homeX: number;
+  side: number;
+}
+
+const SPAWN_Y = () => -30;
+export const enemyTypes: Record<string, typeStats> = {
+  drone: {
+    hp: 2,
+    y: SPAWN_Y,
+    score: 100,
+    radius: 13,
+    dropChance: 0.015,
+    canShoot: true,
+  },
+  dart: {
+    hp: 1,
+    y: SPAWN_Y,
+    score: 150,
+    radius: 12,
+    dropChance: 0.015,
+    canShoot: false,
+  },
+  turret: {
+    hp: 12,
+    y: SPAWN_Y,
+    score: 400,
+    radius: 19,
+    dropChance: 0.3,
+    canShoot: true,
+  },
+  lancer: {
+    hp: 4,
+    y: (i) => 70 + Math.floor(i / 2) * 50,
+    score: 250,
+    radius: 15,
+    dropChance: 0.06,
+    canShoot: true,
+  },
+  boss: {
+    hp: 900,
+    y: () => SPAWN_Y() * 3,
+    score: 10000,
+    radius: 46,
+    dropChance: 0,
+    canShoot: true,
+  },
+};
 /** What actors may ask of the scene that hosts them. */
 export interface Arena {
   readonly rng: Rng;
@@ -48,6 +123,235 @@ export abstract class Actor extends Phaser.GameObjects.Image {
     return this.x < -margin || this.x > WIDTH + margin ||
       this.y < -margin * 3 ||
       this.y > HEIGHT + margin;
+  }
+}
+export class Powerup extends Actor {
+  kind: string;
+  constructor(
+    scene: Phaser.Scene,
+    x: number,
+    y: number,
+    kind: string,
+    radius: number = 14,
+  ) {
+    super(scene, x, y, kind, radius);
+    this.kind = kind;
+  }
+  step(): void {
+    this.age++;
+    this.y += 1.1;
+    this.rotation += 0.04;
+    this.setScale(1 + 0.12 * Math.sin(this.age * 0.15));
+  }
+}
+export class Enemy extends Actor {
+  maxHp: number;
+  flash = 0;
+  heading = 0;
+  spin = 0;
+  kind: string;
+  hp: number;
+  score: number;
+  dropChance: number;
+  canShoot: boolean;
+  homeX: number;
+  side: number;
+
+  constructor(
+    scene: Phaser.Scene,
+    typeStats: typeStats,
+    spawnInfo: spawnInfo,
+  ) {
+    super(scene, spawnInfo.x, spawnInfo.y, spawnInfo.kind, typeStats.radius);
+    this.kind = spawnInfo.kind;
+    this.maxHp = typeStats.hp;
+    this.hp = typeStats.hp;
+    this.score = typeStats.score;
+    this.dropChance = typeStats.dropChance;
+    this.canShoot = typeStats.canShoot;
+    this.homeX = spawnInfo.homeX;
+    this.side = spawnInfo.side;
+  }
+
+  step(arena: Arena): void {
+    this.age++;
+    const { x, y } = this;
+    this.moveByKind(arena);
+    this.vx = this.x - x;
+    this.vy = this.y - y;
+    if (this.canShoot) this.fireWeapon(arena);
+    this.flash = Math.max(0, this.flash - 1);
+    if (this.flash > 0) {
+      this.setTint(0xffffff).setTintMode(Phaser.TintModes.FILL);
+    } else this.clearTint();
+  }
+
+  moveByKind(_arena: Arena): void {
+  }
+
+  // Every enemy fires here; darts fire as they dive.
+  fireWeapon(_arena: Arena): void {
+  }
+
+  get fraction(): number {
+    return this.hp / this.maxHp;
+  }
+
+  phase(): number {
+    return 1;
+  }
+
+  /** Returns true when this hit destroys the prefab. */
+  takeDamage(amount: number): boolean {
+    this.hp -= amount;
+    this.flash = 3;
+    return this.hp <= 0;
+  }
+}
+
+export class Drone extends Enemy {
+  constructor(scene: Phaser.Scene, spawn: spawnInfo) {
+    super(scene, enemyTypes.drone, spawn);
+  }
+  override moveByKind(_arena: Arena): void {
+    this.y += 1.5;
+    this.x = this.homeX + Math.sin(this.age * 0.045) * 46 * this.side;
+  }
+  override fireWeapon(arena: Arena): void {
+    if (this.age % 100 !== 60 || !arena.rng.chance(0.35)) return;
+    arena.fire(this.x, this.y, aim(this, arena), 2.4);
+  }
+}
+
+export class Dart extends Enemy {
+  constructor(scene: Phaser.Scene, spawn: spawnInfo) {
+    super(scene, enemyTypes.dart, spawn);
+  }
+  override moveByKind(arena: Arena): void {
+    if (this.age < 50) {
+      this.y += 1.2;
+    } else {
+      if (this.age === 50) {
+        this.heading = Math.sign(arena.player.x - this.x) * 1.4;
+      }
+      this.y += 5.2;
+      this.x += this.heading;
+    }
+  }
+}
+
+export class Turret extends Enemy {
+  constructor(scene: Phaser.Scene, spawn: spawnInfo) {
+    super(scene, enemyTypes.turret, spawn);
+  }
+  override moveByKind(_arena: Arena): void {
+    if (this.age < 70) this.y += 1.6;
+    else if (this.age > 420) this.y += 1.2;
+    this.rotation += 0.02;
+  }
+  override fireWeapon(arena: Arena): void {
+    const t = this.age - 80;
+    if (t < 0 || this.age > 420 || t % 100 > 40 || t % 8 !== 0) return;
+    arena.fire(this.x, this.y, aim(this, arena), 3.4);
+  }
+}
+
+export class Lancer extends Enemy {
+  constructor(scene: Phaser.Scene, spawn: spawnInfo) {
+    super(scene, enemyTypes.lancer, spawn);
+  }
+  override moveByKind(_arena: Arena): void {
+    this.x += 2.4 * this.side;
+    this.y += 0.35;
+  }
+  override fireWeapon(arena: Arena): void {
+    if (this.age % 40 !== 20 || this.x < 20 || this.x > WIDTH - 20) return;
+    for (const spread of [-0.25, 0, 0.25]) {
+      arena.fire(this.x, this.y + 8, Math.PI / 2 + spread, 2.6);
+    }
+  }
+}
+export class Boss extends Enemy {
+  readonly core: Phaser.GameObjects.Image;
+
+  constructor(scene: Phaser.Scene) {
+    super(
+      scene,
+      enemyTypes.boss,
+      {
+        x: WIDTH / 2,
+        y: -90,
+        kind: "boss",
+        homeX: WIDTH / 2,
+        side: 1,
+      },
+    );
+    this.core = scene.add.image(this.x, this.y, "boss-core").setBlendMode(
+      Phaser.BlendModes.ADD,
+    );
+  }
+
+  override phase(): number {
+    return this.fraction > 2 / 3 ? 1 : this.fraction > 1 / 3 ? 2 : 3;
+  }
+
+  /** The Warden ignores damage until it has finished descending. */
+  get arrived(): boolean {
+    return this.age > 150;
+  }
+
+  override takeDamage(amount: number): boolean {
+    return this.arrived ? super.takeDamage(amount) : false;
+  }
+
+  override step(arena: Arena): void {
+    super.step(arena);
+    if (!this.arrived) {
+      this.y += 1.4;
+    } else {
+      const sway = this.phase() === 3 ? 0.012 : 0.008;
+      this.x = WIDTH / 2 + Math.sin((this.age - 150) * sway) * 140;
+      this.attack(arena, this.age - 150);
+    }
+    this.core.setPosition(this.x, this.y + 6);
+    this.core.setScale(1 + 0.15 * Math.sin(this.age * (0.08 * this.phase())));
+  }
+
+  private attack(arena: Arena, t: number): void {
+    if (this.phase() === 1 && t % 55 === 0) this.fan(arena, 9, 1.1, 2.8);
+    if (this.phase() === 2) {
+      if (t % 80 === 0) this.fan(arena, 9, 1.2, 3);
+      if (t % 80 === 40) {
+        for (const d of [-0.12, 0, 0.12]) {
+          arena.fire(this.x, this.y + 30, aim(this, arena) + d, 4.2, true);
+        }
+      }
+      if (t % 360 === 180) {
+        arena.summon("drone", this.x - 70, this.y);
+        arena.summon("drone", this.x + 70, this.y);
+      }
+    }
+    if (this.phase() === 3 && t % 6 === 0) {
+      this.spin += 0.23;
+      for (let arm = 0; arm < 4; arm++) {
+        arena.fire(this.x, this.y + 6, this.spin + (arm * Math.PI) / 2, 2.6);
+      }
+      if (t % 48 === 0) {
+        arena.fire(this.x, this.y + 30, aim(this, arena), 4.6, true);
+      }
+    }
+  }
+
+  private fan(arena: Arena, count: number, width: number, speed: number): void {
+    for (let i = 0; i < count; i++) {
+      const angle = Math.PI / 2 + (i / (count - 1) - 0.5) * width;
+      arena.fire(this.x, this.y + 40, angle, speed);
+    }
+  }
+
+  override destroy(fromScene?: boolean): void {
+    this.core.destroy(fromScene);
+    super.destroy(fromScene);
   }
 }
 
